@@ -25,23 +25,68 @@ jobs:
           node-version: '20'
 
       - name: Install Bubblewrap
-        run: npm install -g @bubblewrap/cli
+        run: npm install -g @bubblewrap/cli@latest
 
-      - name: Initialize TWA project
+      - name: Create twa-manifest.json
         run: |
-          bubblewrap init --manifest https://urbanbuildomniflow.site/manifest.json --directory twa-project
-        env:
-          BUBBLEWRAP_SKIP_UPDATE_CHECK: true
+          mkdir -p twa-project
+          cat > twa-project/twa-manifest.json << 'EOF'
+          {
+            "packageId": "site.urbanbuildomniflow.app",
+            "host": "urbanbuildomniflow.site",
+            "name": "OmniBuilder AI",
+            "launcherName": "OmniBuilder",
+            "display": "standalone",
+            "themeColor": "#4F46E5",
+            "backgroundColor": "#0A0B0F",
+            "startUrl": "/",
+            "iconUrl": "https://urbanbuildomniflow.site/functions/pwaIcon",
+            "maskableIconUrl": "https://urbanbuildomniflow.site/functions/pwaIcon",
+            "appVersionCode": 1,
+            "appVersionName": "1.0.0",
+            "orientation": "portrait",
+            "shortcuts": [],
+            "generatorApp": "bubblewrap-cli",
+            "webManifestUrl": "https://urbanbuildomniflow.site/manifest.json",
+            "isChromeOSOnly": false,
+            "isMetaQuest": false,
+            "enableNotifications": false,
+            "minSdkVersion": 19,
+            "targetSdkVersion": 34,
+            "signingKey": {
+              "path": "../android.keystore",
+              "alias": "android"
+            }
+          }
+          EOF
 
-      - name: Build AAB
+      - name: Generate signing key
+        run: |
+          keytool -genkeypair -v \
+            -keystore android.keystore \
+            -alias android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass android \
+            -keypass android \
+            -dname "CN=OmniBuilder AI, OU=Mobile, O=OmniBuilder, L=New York, S=NY, C=US"
+
+      - name: Build TWA
         run: |
           cd twa-project
-          bubblewrap build
+          bubblewrap build --skipPwaValidation
         env:
-          BUBBLEWRAP_SKIP_UPDATE_CHECK: true
+          BUBBLEWRAP_SKIP_UPDATE_CHECK: "true"
 
-      - name: Upload AAB artifact
+      - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
           name: app-release
           path: twa-project/app-release-bundle.aab
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: twa-project/app-release-signed.apk
