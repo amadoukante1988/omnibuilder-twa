@@ -24,6 +24,9 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli@latest
 
@@ -75,9 +78,10 @@ jobs:
       - name: Build TWA
         run: |
           cd twa-project
-          bubblewrap build --skipPwaValidation
+          echo "android" | bubblewrap build --skipPwaValidation
         env:
           BUBBLEWRAP_SKIP_UPDATE_CHECK: "true"
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
 
       - name: Upload AAB
         uses: actions/upload-artifact@v4
