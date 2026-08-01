@@ -10,28 +10,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-      - name: Setup Java JDK
-        uses: actions/setup-java@v3
+      - name: Set up Java
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Install Bubblewrap CLI
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      - name: Init TWA project
+      - name: Initialize TWA project
         run: |
-          mkdir twa-build && cd twa-build
-          bubblewrap init --manifest https://urbanbuildomniflow.site/manifest.json
+          bubblewrap init --manifest https://urbanbuildomniflow.site/manifest.json --directory twa-project
+        env:
+          BUBBLEWRAP_SKIP_UPDATE_CHECK: true
 
       - name: Build AAB
-        run: cd twa-build && bubblewrap build
+        run: |
+          cd twa-project
+          bubblewrap build
+        env:
+          BUBBLEWRAP_SKIP_UPDATE_CHECK: true
 
       - name: Upload AAB artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: omnibuilder-release
-          path: twa-build/app/build/outputs/bundle/release/*.aab
+          name: app-release
+          path: twa-project/app-release-bundle.aab
