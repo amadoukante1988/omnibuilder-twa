@@ -19,49 +19,11 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli@latest
-
-      - name: Create twa-manifest.json
-        run: |
-          mkdir -p twa-project
-          cat > twa-project/twa-manifest.json << 'EOF'
-          {
-            "packageId": "site.urbanbuildomniflow.app",
-            "host": "urbanbuildomniflow.site",
-            "name": "OmniBuilder AI",
-            "launcherName": "OmniBuilder",
-            "display": "standalone",
-            "themeColor": "#4F46E5",
-            "backgroundColor": "#0A0B0F",
-            "startUrl": "/",
-            "iconUrl": "https://urbanbuildomniflow.site/functions/pwaIcon",
-            "maskableIconUrl": "https://urbanbuildomniflow.site/functions/pwaIcon",
-            "appVersionCode": 1,
-            "appVersionName": "1.0.0",
-            "orientation": "portrait",
-            "shortcuts": [],
-            "generatorApp": "bubblewrap-cli",
-            "webManifestUrl": "https://urbanbuildomniflow.site/manifest.json",
-            "isChromeOSOnly": false,
-            "isMetaQuest": false,
-            "enableNotifications": false,
-            "minSdkVersion": 19,
-            "targetSdkVersion": 34,
-            "signingKey": {
-              "path": "../android.keystore",
-              "alias": "android"
-            }
-          }
-          EOF
 
       - name: Generate signing key
         run: |
@@ -71,17 +33,40 @@ jobs:
             -keyalg RSA \
             -keysize 2048 \
             -validity 10000 \
-            -storepass android \
-            -keypass android \
+            -storepass android123 \
+            -keypass android123 \
             -dname "CN=OmniBuilder AI, OU=Mobile, O=OmniBuilder, L=New York, S=NY, C=US"
 
-      - name: Build TWA
+      - name: Initialize Bubblewrap project
         run: |
-          cd twa-project
-          echo "android" | bubblewrap build --skipPwaValidation
+          bubblewrap init \
+            --manifest="https://urbanbuildomniflow.site/manifest.json" \
+            --directory="twa-project" \
+            --skipPwaValidation \
+            --yes
         env:
           BUBBLEWRAP_SKIP_UPDATE_CHECK: "true"
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+
+      - name: Update package ID and signing key
+        run: |
+          cd twa-project
+          # Update twa-manifest.json with correct package ID
+          node -e "
+            const fs = require('fs');
+            const m = JSON.parse(fs.readFileSync('twa-manifest.json','utf8'));
+            m.packageId = 'site.urbanbuildomniflow.app';
+            m.signingKey = { path: '../android.keystore', alias: 'android' };
+            fs.writeFileSync('twa-manifest.json', JSON.stringify(m, null, 2));
+            console.log('Updated:', m.packageId);
+          "
+
+      - name: Build AAB
+        run: |
+          cd twa-project
+          bubblewrap build --skipPwaValidation
+        env:
+          BUBBLEWRAP_SKIP_UPDATE_CHECK: "true"
+          BUBBLEWRAP_SKIP_ANDROID_SDK_INSTALL: "true"
 
       - name: Upload AAB
         uses: actions/upload-artifact@v4
