@@ -1,0 +1,28 @@
+{
+  "packageId": "site.urbanbuildomniflow.app",
+  "host": "urbanbuildomniflow.site",
+  "name": "OmniBuilder AI",
+  "launcherName": "OmniBuilder",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#4F46E5",
+  "backgroundColor": "#0A0B0F",
+  "startUrl": "/",
+  "iconUrl": "https://urbanbuildomniflow.site/functions/pwaIcon",
+  "maskableIconUrl": "https://urbanbuildomniflow.site/functions/pwaIcon",
+  "appVersion": "1.0.0",
+  "appVersionCode": 1,
+  "signingKey": {
+    "path": "../android.keystore",
+    "alias": "android"
+  },
+  "signingKeyPassword": "android123",
+  "signingStorePassword": "android123",
+  "minSdkVersion": 19,
+  "targetSdkVersion": 34,
+  "enableNotifications": false,
+  "shortcuts": [],
+  "webManifestUrl": "https://urbanbuildomniflow.site/manifest.json",
+  "generatorApp": "bubblewrap-cli",
+  "features": {}
+}
