@@ -1,20 +1,15 @@
 name: Build TWA AAB
-
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: [main]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
@@ -23,43 +18,44 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install Bubblewrap
-        run: npm install -g @bubblewrap/cli@latest
+        run: npm install -g @bubblewrap/cli
 
       - name: Generate signing key
         run: |
-          keytool -genkeypair -v \
-            -keystore android.keystore \
-            -alias android \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -storepass android123 \
-            -keypass android123 \
-            -dname "CN=OmniBuilder AI, OU=Mobile, O=OmniBuilder, L=New York, S=NY, C=US"
+          keytool -genkey -v -keystore omnibuilder.keystore \
+            -alias omnibuilder -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=OmniBuilder AI, OU=Dev, O=OmniBuilder, L=NY, S=NY, C=US" \
+            -storepass omnibuilder123 -keypass omnibuilder123
 
       - name: Prepare TWA project
         run: |
           mkdir -p twa-project
           cp twa-manifest.json twa-project/twa-manifest.json
+          cd twa-project
+          bubblewrap init --manifest=twa-manifest.json --directory=. \
+            --androidSdkPath=$ANDROID_SDK_ROOT
 
       - name: Build AAB
-        run: |
-          cd twa-project
-          yes no | bubblewrap build --skipPwaValidation
+        working-directory: twa-project
         env:
-          BUBBLEWRAP_SKIP_UPDATE_CHECK: "true"
-          BUBBLEWRAP_SKIP_ANDROID_SDK_INSTALL: "true"
-          SIGNING_KEY_STORE_PASS: "android123"
-          SIGNING_KEY_PASS: "android123"
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+        run: |
+          bubblewrap build \
+            --skipPwaValidation \
+            --androidSdkPath=$ANDROID_SDK_ROOT \
+            --keyPath=../omnibuilder.keystore \
+            --keyAlias=omnibuilder \
+            --keystorePassword=omnibuilder123 \
+            --keyPassword=omnibuilder123
 
       - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
+          name: omnibuilder-release
           path: twa-project/app-release-bundle.aab
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
+          name: omnibuilder-apk
           path: twa-project/app-release-signed.apk
