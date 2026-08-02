@@ -39,18 +39,18 @@ jobs:
 
       - name: Initialize Bubblewrap project
         run: |
-          bubblewrap init \
-            --manifest="https://urbanbuildomniflow.site/manifest.json" \
-            --directory="twa-project" \
-            --skipPwaValidation \
-            --yes
+          sudo apt-get install -y expect
+          expect << 'EOF'
+          spawn bubblewrap init --manifest="https://urbanbuildomniflow.site/manifest.json" --directory="twa-project" --skipPwaValidation
+          expect "Do you want Bubblewrap to install the SDK*" { send "No\r" }
+          expect eof
+          EOF
         env:
           BUBBLEWRAP_SKIP_UPDATE_CHECK: "true"
 
       - name: Update package ID and signing key
         run: |
           cd twa-project
-          # Update twa-manifest.json with correct package ID
           node -e "
             const fs = require('fs');
             const m = JSON.parse(fs.readFileSync('twa-manifest.json','utf8'));
@@ -63,7 +63,11 @@ jobs:
       - name: Build AAB
         run: |
           cd twa-project
-          bubblewrap build --skipPwaValidation
+          expect << 'EOF'
+          spawn bubblewrap build --skipPwaValidation
+          expect "Do you want Bubblewrap to install the SDK*" { send "No\r" }
+          expect eof
+          EOF
         env:
           BUBBLEWRAP_SKIP_UPDATE_CHECK: "true"
           BUBBLEWRAP_SKIP_ANDROID_SDK_INSTALL: "true"
