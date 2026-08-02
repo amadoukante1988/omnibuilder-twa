@@ -1,0 +1,29 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.omnibuilderai.app'
+    compileSdk 34
+    defaultConfig {
+        applicationId "com.omnibuilderai.app"
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+    signingConfigs {
+        release {
+            storeFile file("omnibuilder.keystore")
+            storePassword "omnibuilder123"
+            keyAlias "omnibuilder"
+            keyPassword "omnibuilder123"
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+}
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}
