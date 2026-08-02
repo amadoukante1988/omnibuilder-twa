@@ -1,162 +1,49 @@
-Je vois l'erreur ! Le step **"Prepare TWA project"** a échoué avec :
-
-> **"Error: Process completed with exit code 1"**
-
-Et encore la même question Bubblewrap sur le SDK qui bloque. **Bubblewrap est définitivement inutilisable en CI** — il est trop interactif.
-
-**Nouvelle stratégie : abandonner Bubblewrap complètement et utiliser Gradle directement.**
-
-Voici le nouveau `build.yml` — remplacez le contenu entier dans GitHub :
-
-```yaml
 name: Build TWA AAB
+
 on:
   push:
-    branches: [main]
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Set up Android SDK
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android build tools
-        run: |
-          sdkmanager "build-tools;34.0.0" "platforms;android-34"
-
-      - name: Create TWA Android project
-        run: |
-          mkdir -p twa-app/app/src/main/res/values
-          mkdir -p twa-app/app/src/main/res/xml
-          mkdir -p twa-app/app/src/main/java/com/omnibuilderai/app
-
-      - name: Write settings.gradle
-        run: |
-          cat > twa-app/settings.gradle << 'EOF'
-          rootProject.name = "OmniBuilderAI"
-          include ':app'
-          EOF
-
-      - name: Write root build.gradle
-        run: |
-          cat > twa-app/build.gradle << 'EOF'
-          buildscript {
-              repositories { google(); mavenCentral() }
-              dependencies { classpath 'com.android.tools.build:gradle:8.2.0' }
-          }
-          allprojects { repositories { google(); mavenCentral() } }
-          EOF
-
-      - name: Write app build.gradle
-        run: |
-          cat > twa-app/app/build.gradle << 'EOF'
-          plugins { id 'com.android.application' }
-          android {
-              namespace 'com.omnibuilderai.app'
-              compileSdk 34
-              defaultConfig {
-                  applicationId "com.omnibuilderai.app"
-                  minSdk 21
-                  targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
-              }
-              signingConfigs {
-                  release {
-                      storeFile file("../../omnibuilder.keystore")
-                      storePassword "omnibuilder123"
-                      keyAlias "omnibuilder"
-                      keyPassword "omnibuilder123"
-                  }
-              }
-              buildTypes {
-                  release {
-                      minifyEnabled false
-                      signingConfig signingConfigs.release
-                  }
-              }
-          }
-          dependencies {
-              implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
-          }
-          EOF
-
-      - name: Write AndroidManifest.xml
-        run: |
-          cat > twa-app/app/src/main/AndroidManifest.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <uses-permission android:name="android.permission.INTERNET"/>
-              <application
-                  android:label="OmniBuilder AI"
-                  android:theme="@style/Theme.AppCompat.Light.NoActionBar">
-                  <activity
-                      android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
-                      android:exported="true">
-                      <meta-data android:name="android.support.customtabs.trusted.DEFAULT_URL"
-                          android:value="https://site.urbanbuildomniflow.app"/>
-                      <intent-filter android:autoVerify="true">
-                          <action android:name="android.intent.action.MAIN"/>
-                          <category android:name="android.intent.category.LAUNCHER"/>
-                      </intent-filter>
-                      <intent-filter android:autoVerify="true">
-                          <action android:name="android.intent.action.VIEW"/>
-                          <category android:name="android.intent.category.DEFAULT"/>
-                          <category android:name="android.intent.category.BROWSABLE"/>
-                          <data android:scheme="https" android:host="site.urbanbuildomniflow.app"/>
-                      </intent-filter>
-                  </activity>
-              </application>
-          </manifest>
-          EOF
-
-      - name: Write strings.xml
-        run: |
-          cat > twa-app/app/src/main/res/values/strings.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <string name="app_name">OmniBuilder AI</string>
-          </resources>
-          EOF
-
-      - name: Generate signing key
-        run: |
-          keytool -genkey -v -keystore omnibuilder.keystore \
-            -alias omnibuilder -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=OmniBuilder AI, OU=Dev, O=OmniBuilder, L=NY, S=NY, C=US" \
-            -storepass omnibuilder123 -keypass omnibuilder123
-
-      - name: Add Gradle wrapper
+      - name: Generate keystore
         working-directory: twa-app
-        run: gradle wrapper --gradle-version=8.2
+        run: |
+          keytool -genkey -v \
+            -keystore app/omnibuilder.keystore \
+            -alias omnibuilder \
+            -keyalg RSA -keysize 2048 \
+            -validity 10000 \
+            -storepass omnibuilder123 \
+            -keypass omnibuilder123 \
+            -dname "CN=OmniBuilder, OU=Mobile, O=OmniBuilderAI, L=NY, ST=NY, C=US"
 
-      - name: Build AAB
+      - name: Make gradlew executable
+        working-directory: twa-app
+        run: chmod +x gradlew
+
+      - name: Build Release AAB
         working-directory: twa-app
         run: ./gradlew bundleRelease
 
       - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
-          name: omnibuilder-release-aab
+          name: omnibuilder-release
           path: twa-app/app/build/outputs/bundle/release/app-release.aab
-
-      - name: Build APK
-        working-directory: twa-app
-        run: ./gradlew assembleRelease
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: omnibuilder-release-apk
-          path: twa-app/app/build/outputs/apk/release/app-release.apk
-```
-
-**Cette approche bypasse complètement Bubblewrap** et construit le projet Android TWA directement avec Gradle — aucune question interactive.
