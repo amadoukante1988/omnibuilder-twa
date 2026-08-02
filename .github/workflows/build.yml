@@ -22,9 +22,6 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Bubblewrap
-        run: npm install -g @bubblewrap/cli@latest
-
       - name: Generate signing key
         run: |
           keytool -genkeypair -v \
@@ -37,44 +34,67 @@ jobs:
             -keypass android123 \
             -dname "CN=OmniBuilder AI, OU=Mobile, O=OmniBuilder, L=New York, S=NY, C=US"
 
-      - name: Create TWA project manually
+      - name: Install Bubblewrap and generate project
+        run: |
+          npm install -g @bubblewrap/cli@latest
+          # Répondre automatiquement à toutes les questions avec 'no' via stdin
+          yes no | bubblewrap init \
+            --manifest="https://urbanbuildomniflow.site/manifest.json" \
+            --directory="twa-project" \
+            --skipPwaValidation 2>&1 || true
+
+      - name: Fix manifest if twa-project not created
         run: |
           mkdir -p twa-project
-          cat > twa-project/twa-manifest.json << 'MANIFEST'
-          {
-            "packageId": "site.urbanbuildomniflow.app",
-            "host": "urbanbuildomniflow.site",
-            "name": "OmniBuilder AI",
-            "launcherName": "OmniBuilder",
-            "display": "standalone",
-            "orientation": "portrait",
-            "themeColor": "#4F46E5",
-            "backgroundColor": "#0A0B0F",
-            "startUrl": "/",
-            "iconUrl": "https://urbanbuildomniflow.site/functions/pwaIcon",
-            "maskableIconUrl": "https://urbanbuildomniflow.site/functions/pwaIcon",
-            "appVersion": "1.0.0",
-            "appVersionCode": 1,
-            "signingKey": {
-              "path": "../android.keystore",
-              "alias": "android"
-            },
-            "signingKeyPassword": "android123",
-            "signingStorePassword": "android123",
-            "minSdkVersion": 19,
-            "targetSdkVersion": 34,
-            "enableNotifications": false,
-            "shortcuts": [],
-            "webManifestUrl": "https://urbanbuildomniflow.site/manifest.json",
-            "generatorApp": "bubblewrap-cli",
-            "features": {}
-          }
-          MANIFEST
+          if [ ! -f twa-project/twa-manifest.json ]; then
+            echo "Creating twa-manifest.json manually..."
+            cat > twa-project/twa-manifest.json << 'EOF'
+{
+  "packageId": "site.urbanbuildomniflow.app",
+  "host": "urbanbuildomniflow.site",
+  "name": "OmniBuilder AI",
+  "launcherName": "OmniBuilder",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#4F46E5",
+  "backgroundColor": "#0A0B0F",
+  "startUrl": "/",
+  "iconUrl": "https://urbanbuildomniflow.site/functions/pwaIcon",
+  "maskableIconUrl": "https://urbanbuildomniflow.site/functions/pwaIcon",
+  "appVersion": "1.0.0",
+  "appVersionCode": 1,
+  "signingKey": {
+    "path": "../android.keystore",
+    "alias": "android"
+  },
+  "signingKeyPassword": "android123",
+  "signingStorePassword": "android123",
+  "minSdkVersion": 19,
+  "targetSdkVersion": 34,
+  "enableNotifications": false,
+  "shortcuts": [],
+  "webManifestUrl": "https://urbanbuildomniflow.site/manifest.json",
+  "generatorApp": "bubblewrap-cli",
+  "features": {}
+}
+EOF
+          fi
+          # Corriger le packageId dans tous les cas
+          node -e "
+            const fs = require('fs');
+            const m = JSON.parse(fs.readFileSync('twa-project/twa-manifest.json','utf8'));
+            m.packageId = 'site.urbanbuildomniflow.app';
+            m.signingKey = { path: '../android.keystore', alias: 'android' };
+            m.signingKeyPassword = 'android123';
+            m.signingStorePassword = 'android123';
+            fs.writeFileSync('twa-project/twa-manifest.json', JSON.stringify(m, null, 2));
+            console.log('Manifest OK:', m.packageId);
+          "
 
-      - name: Build AAB
+      - name: Build AAB with Bubblewrap
         run: |
           cd twa-project
-          bubblewrap build --skipPwaValidation
+          yes no | bubblewrap build --skipPwaValidation 2>&1
         env:
           BUBBLEWRAP_SKIP_UPDATE_CHECK: "true"
           BUBBLEWRAP_SKIP_ANDROID_SDK_INSTALL: "true"
